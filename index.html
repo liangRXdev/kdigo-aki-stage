@@ -519,17 +519,18 @@
                 <input type="number" id="currScr" step="0.01">
             </div>
         </div>
+        <div class="form-group full-width">
+            <label>時間窗（SCr 由 baseline 上升至 current 所歷經的時間）</label>
+            <select id="timeframe">
+                <option value="">請選擇時間窗</option>
+                <option value="lt48">小於 48 小時</option>
+                <option value="48h-7d">48 小時 – 7 天</option>
+                <option value="gt7">大於 7 天或時間不明</option>
+            </select>
+        </div>
         <div class="checkbox-item">
             <input type="checkbox" id="isRRT">
-            <label for="isRRT">已啟動腎臟替代治療 (Initiation of RRT)</label>
-        </div>
-        <div class="checkbox-item">
-            <input type="checkbox" id="is48h">
-            <label for="is48h">48h 內 SCr 上升 ≥ 0.3 mg/dL（C1/C3 絕對值判定窗）</label>
-        </div>
-        <div class="checkbox-item">
-            <input type="checkbox" id="is7d">
-            <label for="is7d">7d 內 SCr ≥ 1.5 倍 baseline（C1–C3 倍率判定窗）</label>
+            <label for="isRRT">已因 AKI 啟動腎臟替代治療（RRT）— 勾選即判定為 Stage 3</label>
         </div>
     </div>
 
@@ -906,8 +907,10 @@
         const volVal = document.getElementById('uVol').value.trim();
         const hrsVal = document.getElementById('uTime').value.trim();
         const isRRT  = document.getElementById('isRRT').checked;
-        const is48h  = document.getElementById('is48h').checked;
-        const is7d   = document.getElementById('is7d').checked;
+        const timeframe = document.getElementById('timeframe').value;
+        // <48h 的變化必然也落在 7d 內，故同時滿足絕對值窗與倍率窗
+        const is48h  = timeframe === 'lt48';
+        const is7d   = timeframe === 'lt48' || timeframe === '48h-7d';
 
         const uFieldsFilled = [wtVal, volVal, hrsVal].filter(v => v !== '').length;
 
@@ -925,6 +928,10 @@
         }
         if (uFieldsFilled > 0 && uFieldsFilled < 3) {
             alert('尿量分期需同時填入體重、尿量、收集時間三欄。');
+            return;
+        }
+        if (!isRRT && baseScrVal !== '' && currScrVal !== '' && timeframe === '') {
+            alert('已填入 SCr，請選擇 SCr 變化的時間窗。');
             return;
         }
 
@@ -949,11 +956,11 @@
                 if (c3ByRatio || c3ByAbs) {
                     cStageInt = 3; cStage = "C3";
                     cDesc = c3ByRatio
-                        ? `≥3.0x baseline (Ratio: ${ratio.toFixed(2)}, 7d 窗)`
+                        ? `≥3.0x baseline (Ratio: ${ratio.toFixed(2)}, 7 天內)`
                         : `SCr ≥4.0 mg/dL 伴急性上升 ≥0.3 mg/dL (Δ${diff.toFixed(2)})`;
                 } else if (ratio >= 2.0 && ratio < 3.0 && is7d) {
                     cStageInt = 2; cStage = "C2";
-                    cDesc = `2.0–2.9x baseline (Ratio: ${ratio.toFixed(2)}, 7d 窗)`;
+                    cDesc = `2.0–2.9x baseline (Ratio: ${ratio.toFixed(2)}, 7 天內)`;
                 } else if ((ratio >= 1.5 && ratio < 2.0 && is7d) || (diff >= 0.3 && is48h)) {
                     cStageInt = 1; cStage = "C1";
                     const reasons = [];
@@ -962,7 +969,7 @@
                     cDesc = reasons.join(' / ');
                 }
             } else {
-                cDesc = "數值有輸入，但未勾選任何判定時間窗（48h / 7d）";
+                cDesc = "時間窗 >7 天或時間不明 — 不符 AKI 時間定義（請考量 AKD / CKD）";
             }
         }
 
@@ -1108,6 +1115,7 @@
     function resetForm() {
         document.querySelectorAll('input[type="number"]').forEach(el => el.value = '');
         document.querySelectorAll('input[type="checkbox"]').forEach(el => el.checked = false);
+        document.getElementById('timeframe').value = '';
         document.getElementById('biomarker').value = 'NotTested';
         document.getElementById('resultBox').style.display = "none";
         document.getElementById('sadmansBox').style.display = "none";
