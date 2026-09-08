@@ -1,0 +1,2 @@
+# Claude Code 本機設定（每台機器不同，不進版控）
+.claude/settings.local.json
