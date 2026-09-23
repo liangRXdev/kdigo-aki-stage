@@ -1,4 +1,5 @@
-const CACHE = 'kdigo-aki-v3';
+const PREFIX = 'kdigo-aki-';
+const CACHE = `${PREFIX}v3`;
 const ASSETS = [
   './index.html',
   './manifest.json',
@@ -19,8 +20,11 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
+      // 只汰換**本工具自己的** cache。
+      // 本站與其他工具共用 liangrxdev.github.io 這個 origin，CacheStorage 是整個
+      // origin 共用的——少了前綴守衛，這裡的 activate 會把鄰居工具的離線快取一起刪光。
       .then(keys => Promise.all(
-        keys.filter(k => k !== CACHE).map(k => caches.delete(k))
+        keys.filter(k => k.startsWith(PREFIX) && k !== CACHE).map(k => caches.delete(k))
       ))
       .then(() => self.clients.claim())
   );
