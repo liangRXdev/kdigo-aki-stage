@@ -1,45 +1,47 @@
 # KDIGO 2026 AKI Staging Calculator
 
+**English** | [繁體中文](README.zh-TW.md)
+
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Click%20Here-blue?style=for-the-badge)](https://liangrxdev.github.io/kdigo-aki-stage)
 
-## 1. 系統結論與定位
-本專案實作 KDIGO 2026 臨床實踐指引草案（Clinical Practice Guideline for AKI and AKD, March 2026 Public Review Draft）之急性腎損傷（AKI）分期演算法。核心目標為將傳統單一最高級別分期，轉換為精準醫療導向的 **C-U-B（Creatinine, Urine, Biomarker）多維度獨立分期系統**。
+## 1. Summary and Positioning
+This project implements the acute kidney injury (AKI) staging algorithm from the draft KDIGO 2026 clinical practice guideline (Clinical Practice Guideline for AKI and AKD, March 2026 Public Review Draft). Its core goal is to replace the traditional single highest-grade stage with a precision-medicine-oriented **C-U-B (Creatinine, Urine, Biomarker) system of independent multi-dimensional stages**. The interface is in Traditional Chinese.
 
-## 2. 客觀數據：系統輸入與輸出規格
+## 2. Facts: Inputs and Outputs
 
-本系統依據 KDIGO 2026 Table 6 定義建構判讀邏輯：
+The interpretation logic follows the definitions in KDIGO 2026 Table 6:
 
-| 評估維度 | 系統輸入參數 (Inputs) | 演算法邏輯 (Logic) | 輸出結果 (Outputs) |
+| Dimension | Inputs | Logic | Outputs |
 | :--- | :--- | :--- | :--- |
-| **C-Stage** | Baseline SCr, Current SCr, **48h 判定窗**（Δ≥0.3）/ **7d 判定窗**（倍率），RRT 狀態 | 倍率判定 (1.5x/2.0x/3.0x，需勾選 7d 窗)；絕對值增量 Δ≥0.3（需勾選 48h 窗）；SCr ≥4.0 需同時具備急性上升 ≥0.3 mg/dL；RRT 直接判 C3 | C0, C1, C2, C3 |
-| **U-Stage** | 體重 (kg), 總尿量 (mL), 收集時間 (h) | 換算速率 (mL/kg/h)，比對 6h / 12h / 24h 門檻；速率 < 0.1 mL/kg/h 持續 >12h 自動判定為 Near-anuria (U3) | U0, U1, U2, U3 |
-| **B-Stage** | 結構性生物標記 (如 NGAL, TIMP-2×IGFBP7 等) | 依臨床檢驗結果直接分類 | Not Evaluated, B0, B1 |
-| **綜合輸出** | 上述三維度陣列資料 | 字串串接與風險顏色格式化 | 例：`AKI Profile: C1 U2 B1` |
+| **C-Stage** | Baseline SCr, current SCr, **48 h window** (Δ≥0.3) / **7 d window** (fold change), RRT status | Fold change (1.5x/2.0x/3.0x, requires the 7 d window checked); absolute increase Δ≥0.3 (requires the 48 h window checked); SCr ≥4.0 also requires an acute rise ≥0.3 mg/dL; RRT is staged C3 directly | C0, C1, C2, C3 |
+| **U-Stage** | Body weight (kg), total urine output (mL), collection time (h) | Converted to a rate (mL/kg/h) and compared against 6 h / 12 h / 24 h thresholds; a rate < 0.1 mL/kg/h sustained >12 h is automatically staged near-anuria (U3) | U0, U1, U2, U3 |
+| **B-Stage** | Structural biomarkers (e.g. NGAL, TIMP-2×IGFBP7) | Classified directly from lab results | Not Evaluated, B0, B1 |
+| **Combined output** | The three dimensions above | String concatenation and risk-color formatting | e.g. `AKI Profile: C1 U2 B1` |
 
-## 3. 推論觀點：演算法變更與臨床意義
+## 3. Interpretation: Algorithm Changes and Clinical Meaning
 
-本工具相較於基於 KDIGO 2012 的舊版計算器，具備以下演算法層級的修正與臨床推論：
-* **解耦分期邏輯（重要修正）：** 舊版指引取 `Max(SCr Stage, UO Stage)` 視為最終分期，此邏輯存在缺陷。臨床上單純的血流動力學改變（高 U-Stage）與實質結構損傷（高 B-Stage / C-Stage）具備完全不同的預後意義。本系統強制獨立呈現 C-U-B，以利精確反映病人生理狀態。
-* **時間窗獨立雙軌判定：** 48h 內 Δ≥0.3 mg/dL 與 7d 內 ≥1.5 倍 baseline 為兩條互相獨立的診斷路徑，使用者需分別確認。C2（2–2.9x）與 C3（≥3x）倍率標準僅適用於 7d 窗；SCr ≥ 4.0 mg/dL 須同時具備急性上升 ≥ 0.3 mg/dL 方判定 C3，以排除慢性 CKD 長期維持高 SCr 的偽陽性。
-* **尿量時間矩陣嚴謹化：** 嚴格對應 `<0.5 mL/kg/h` 發生於 6–12h (U1) 或 >12h (U2) 的切點；以速率 `< 0.1 mL/kg/h` 持續 >12h 作為 Near-anuria 門檻判定 U3，避免嚴格零值判定造成的漏判。
-* **輸入驗證：** 執行分析前主動檢查資料完整性：Baseline / Current SCr 需成對輸入；尿量三欄（體重、尿量、收集時間）需同時填寫；全空白送出時立即提示，防止靜默輸出 C0。
-* **干擾因子具象化：** 將可能導致偽陰性或偽陽性的臨床因子（詳見系統限制）納入表單，動態生成防呆警示，降低過度診斷或漏診風險。
+Compared with older calculators based on KDIGO 2012, this tool makes the following algorithm-level corrections, with clinical reasoning:
+* **Decoupled staging (key correction):** The old guideline takes `Max(SCr Stage, UO Stage)` as the final stage, which is flawed. Clinically, a pure hemodynamic change (high U-Stage) and structural parenchymal injury (high B-Stage / C-Stage) carry completely different prognoses. This system always shows C, U and B separately to reflect the patient's physiology accurately.
+* **Two independent time-window paths:** Δ≥0.3 mg/dL within 48 h and ≥1.5× baseline within 7 d are two independent diagnostic paths, and the user confirms each separately. The fold-change criteria for C2 (2–2.9x) and C3 (≥3x) apply only to the 7 d window; SCr ≥ 4.0 mg/dL is staged C3 only with an accompanying acute rise ≥ 0.3 mg/dL, excluding false positives from CKD patients with chronically high SCr.
+* **Stricter urine-output time matrix:** Strictly maps `<0.5 mL/kg/h` over 6–12 h (U1) or >12 h (U2); U3 uses a near-anuria threshold of `< 0.1 mL/kg/h` sustained >12 h, avoiding misses caused by requiring strictly zero output.
+* **Input validation:** Data completeness is checked before analysis: baseline / current SCr must be entered as a pair; the three urine fields (weight, volume, collection time) must be filled together; an all-blank submission is flagged immediately rather than silently outputting C0.
+* **Explicit confounders:** Clinical factors that may cause false negatives or positives (see limitations) are part of the form and dynamically generate warnings, reducing over- and under-diagnosis.
 
-## 4. 客觀限制與防呆機制 (Limitations & Confounders)
+## 4. Limitations & Confounders
 
-依據 KDIGO 2026 Table 2，本系統演算法在以下情境需由專家校正判讀，系統內已內建警示機制：
-1. **藥物干擾：** 使用利尿劑可能強制拉高尿量，掩蓋真實的 U-Stage；使用 RASi 或 SGLT2i 可能導致 SCr 上升，此屬血流動力學效應而非實質結構損傷。
-2. **基期生理極端值：** 肌肉量極低或肝功能不全者，Baseline SCr 基準偏低，易導致 C-Stage 診斷延遲或漏診。
-3. **生理性過濾增加：** 孕婦具備生理性 GFR 增加，可能掩蓋早期的 SCr 上升。
-4. **小兒族群：** 18歲以下兒童需使用特定 eGFR 公式（如 Schwartz equation）與小兒專屬尿量切點，未納入本計算器涵蓋範圍。
+Per KDIGO 2026 Table 2, the algorithm needs expert adjustment in the following situations; the system has built-in warnings for them:
+1. **Drug interference:** Diuretics can force up urine output and mask the true U-Stage; RASi or SGLT2i can raise SCr as a hemodynamic effect rather than structural injury.
+2. **Extreme baseline physiology:** In patients with very low muscle mass or hepatic impairment, baseline SCr is low, which can delay or miss C-Stage diagnosis.
+3. **Physiological hyperfiltration:** Pregnancy increases GFR physiologically and may mask an early SCr rise.
+4. **Pediatric patients:** Children under 18 need specific eGFR equations (e.g. the Schwartz equation) and pediatric urine-output cutoffs, which this calculator does not cover.
 
-## 5. 部署與執行 (Deployment)
-本專案為純前端靜態單頁應用 (SPA)，以 HTML/CSS/Vanilla JS 撰寫，無後端伺服器依賴，確保病患數據之隱私安全性。
-* **Live Demo:** [(https://liangrxdev.github.io/kdigo-aki-stage/)]
-* **Usage:** `Clone` 或下載 `index.html` 即可於任何現代瀏覽器離線執行。
+## 5. Deployment
+The project is a pure frontend static single-page app (SPA) written in HTML/CSS/vanilla JS with no backend dependency, keeping patient data private.
+* **Live Demo:** [https://liangrxdev.github.io/kdigo-aki-stage/](https://liangrxdev.github.io/kdigo-aki-stage/)
+* **Usage:** Clone or download `index.html` and run it offline in any modern browser.
 
 ## 6. Disclaimer
-**本工具僅供醫療專業人員教育與學術評估使用。** 計算結果不得取代臨床醫師之專業綜合判斷。
+**This tool is for education and academic evaluation by healthcare professionals only.** Results must not replace the clinician's overall professional judgment.
 
 ## 7. References
 * KDIGO 2026 Clinical Practice Guideline for Acute Kidney Injury (AKI) and Acute Kidney Disease (AKD) - Public Review Draft, March 2026.
