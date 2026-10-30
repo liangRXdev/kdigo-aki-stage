@@ -57,3 +57,11 @@ test('驗證失敗時隱藏舊結果並清除複製文字，不殘留上一次�
     assert.equal(s.visible, false);
     assert.equal(s.copy, null);
 });
+
+test('程式碼不含西里爾字母（防同形字識別字，如 postaкi）', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const { ROOT } = require('./helpers/dom');
+    for (const f of ['index.html', 'js/calc.js', 'sw.js'])
+        assert.doesNotMatch(fs.readFileSync(path.join(ROOT, f), 'utf8'), /[Ѐ-ӿ]/, f);
+});
