@@ -103,3 +103,33 @@ test('浮點容差不放寬真正未達標者', () => {
     assert.equal(C('3.71', '4.0', 'lt48').cStage, 'C0');
     assert.equal(C('3.0', '3.99', 'lt48').cStage, 'C1');
 });
+
+test('極端值：SCr ≤0、負值、非有限數 → 回傳錯誤，不靜默判 C0', () => {
+    for (const [b, k] of [['0', '1.2'], ['-1', '1.2'], ['1.0', '0'], ['1.0', '-0.5'], ['1e400', '1.2'], ['abc', '1.2']]) {
+        const r = C(b, k, 'lt48');
+        assert.match(r.error || '', /SCr.*大於 0/, `${b}→${k}`);
+    }
+    assert.match(C('0', '1.2', 'lt48', { isRRT: true }).error || '', /SCr.*大於 0/);
+});
+
+test('極端值：體重 ≤0、收集時間 ≤0、尿量為負 → 回傳錯誤', () => {
+    for (const [w, v, h, re] of [
+        ['0', '100', '6', /體重/], ['-70', '100', '6', /體重/],
+        ['70', '100', '0', /收集時間/], ['70', '100', '-6', /收集時間/],
+        ['70', '-10', '6', /尿量/], ['70', 'abc', '6', /尿量/],
+    ]) assert.match(U(w, v, h).error || '', re, `${w}/${v}/${h}`);
+});
+
+test('極端值：尿量 0 為有效輸入（無尿）', () => {
+    assert.equal(U('70', '0', '6').error, null);
+});
+
+test('輸出不得出現 NaN、Infinity 或負值', () => {
+    const { buildCases } = require('./helpers/cases');
+    for (const c of buildCases()) {
+        const r = evaluateAKI(c);
+        if (r.error) continue;
+        for (const s of [r.cDesc, r.uDesc]) assert.doesNotMatch(s, /NaN|Infinity|-\d/, `${JSON.stringify(c)} → ${s}`);
+        for (const n of [r.cStageInt, r.uStageInt, r.finalStage]) assert.ok(Number.isInteger(n) && n >= 0 && n <= 3);
+    }
+});

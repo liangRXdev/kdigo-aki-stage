@@ -29,7 +29,16 @@ function exactMatches(html, c) {
     return e !== 'C1' || sameReasons(reasonsOf(html), exactC1Reasons(c));
 }
 
+const bad = (v, allowZero) => v !== '' && !(parseFloat(v) > 0 || (allowZero && parseFloat(v) === 0));
+
 module.exports = [
+    {
+        id: 'fix-invalid-range',
+        // 舊版未擋：SCr ≤0、體重 ≤0、時數 ≤0、尿量 <0（須在原有「缺欄位」檢查通過後）
+        match: (c, old) => old.alert === null && (bad(c.baseScr) || bad(c.currScr) ||
+            bad(c.weight) || bad(c.uTime) || bad(c.uVol, true)),
+        check: now => /大於 0|≥0/.test(now.alert || '') && !now.visible && now.copy === null,
+    },
     {
         id: 'fix-float-threshold',
         match: (c, old) => exactCStage(c) !== null && old.alert === null && !exactMatches(old.resC, c),
