@@ -27,8 +27,12 @@ function loadSW(existingKeys) {
     return { ctx, stores, fire };
 }
 
-test('sw：CACHE 為 kdigo-aki-v4', () => {
-    assert.equal(loadSW([]).ctx.__CACHE, 'kdigo-aki-v4');
+// 版本號每次動 shell 檔都會升，測試不寫死，只鎖格式
+const CURRENT = loadSW([]).ctx.__CACHE;
+const CURRENT_N = Number((/^kdigo-aki-v(\d+)$/.exec(CURRENT) || [])[1]);
+
+test('sw：CACHE 格式為 kdigo-aki-vN（N ≥ 5）', () => {
+    assert.ok(CURRENT_N >= 5, CURRENT);
 });
 
 test('sw：install 預快取 index.html 引用的本地 script 與 manifest 圖示', async () => {
@@ -45,7 +49,8 @@ test('sw：install 預快取 index.html 引用的本地 script 與 manifest 圖�
 
 test('sw：activate 只刪 kdigo-aki- 前綴的舊版，不動其他工具 cache', async () => {
     const others = ['other-tool-v1', 'kdigo-akd-v1', 'kdigo-aki', 'vanco-tdm-v9'];
-    const sw = loadSW(['kdigo-aki-v1', 'kdigo-aki-v2', 'kdigo-aki-v3', 'kdigo-aki-v4', ...others]);
+    const olds = Array.from({ length: CURRENT_N - 1 }, (_, i) => `kdigo-aki-v${i + 1}`);
+    const sw = loadSW([...olds, CURRENT, ...others]);
     await sw.fire('activate');
-    assert.deepEqual([...sw.stores.keys()].sort(), ['kdigo-aki-v4', ...others].sort());
+    assert.deepEqual([...sw.stores.keys()].sort(), [CURRENT, ...others].sort());
 });

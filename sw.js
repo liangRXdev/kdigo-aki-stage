@@ -1,5 +1,5 @@
 const PREFIX = 'kdigo-aki-';
-const CACHE = `${PREFIX}v4`;
+const CACHE = `${PREFIX}v5`;
 const ASSETS = [
   './index.html',
   './manifest.json',
