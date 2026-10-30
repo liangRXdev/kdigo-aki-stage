@@ -3,6 +3,11 @@
 (function (root) {
     'use strict';
 
+    // 浮點容差：0.3、1.5 倍等門檻以 IEEE 754 計算會落在門檻下方
+    // （1.4 − 1.1 = 0.2999…、1.2 / 0.8 = 1.4999…），比較時一律容許 EPS。
+    const EPS = 1e-9;
+    const gte = (a, b) => a >= b - EPS;
+
     // 輸入皆為表單原始字串（或 boolean）；回傳 { error } 或分期結果。
     function evaluateAKI(input) {
         const str = v => (v === undefined || v === null ? '' : String(v).trim());
@@ -45,21 +50,22 @@
             const ratio = cScr / bScr;
             const diff  = cScr - bScr;
             if (is48h || is7d) {
-                const c3ByRatio = ratio >= 3.0 && is7d;
-                const c3ByAbs   = cScr >= 4.0 && diff >= 0.3 && (is48h || is7d);
+                const dOK = gte(diff, 0.3);
+                const c3ByRatio = gte(ratio, 3.0) && is7d;
+                const c3ByAbs   = gte(cScr, 4.0) && dOK && (is48h || is7d);
                 if (c3ByRatio || c3ByAbs) {
                     cStageInt = 3; cStage = "C3";
                     cDesc = c3ByRatio
                         ? `≥3.0x baseline (Ratio: ${ratio.toFixed(2)}, 7 天內)`
                         : `SCr ≥4.0 mg/dL 伴急性上升 ≥0.3 mg/dL (Δ${diff.toFixed(2)})`;
-                } else if (ratio >= 2.0 && ratio < 3.0 && is7d) {
+                } else if (gte(ratio, 2.0) && is7d) {
                     cStageInt = 2; cStage = "C2";
                     cDesc = `2.0–2.9x baseline (Ratio: ${ratio.toFixed(2)}, 7 天內)`;
-                } else if ((ratio >= 1.5 && ratio < 2.0 && is7d) || (diff >= 0.3 && is48h)) {
+                } else if ((gte(ratio, 1.5) && is7d) || (dOK && is48h)) {
                     cStageInt = 1; cStage = "C1";
                     const reasons = [];
-                    if (diff >= 0.3 && is48h) reasons.push(`Δ${diff.toFixed(2)} mg/dL within 48h`);
-                    if (ratio >= 1.5 && ratio < 2.0 && is7d) reasons.push(`${ratio.toFixed(2)}x baseline within 7d`);
+                    if (dOK && is48h) reasons.push(`Δ${diff.toFixed(2)} mg/dL within 48h`);
+                    if (gte(ratio, 1.5) && is7d) reasons.push(`${ratio.toFixed(2)}x baseline within 7d`);
                     cDesc = reasons.join(' / ');
                 }
             } else {
