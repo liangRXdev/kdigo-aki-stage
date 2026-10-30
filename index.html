@@ -694,6 +694,7 @@
 
 </div>
 
+<script src="js/calc.js"></script>
 <script>
     let copyTextData = "";
 
@@ -901,99 +902,21 @@
 
     // ── Main Calculator ──
     function calculateAKI() {
-        const baseScrVal = document.getElementById('baseScr').value.trim();
-        const currScrVal = document.getElementById('currScr').value.trim();
-        const wtVal  = document.getElementById('weight').value.trim();
-        const volVal = document.getElementById('uVol').value.trim();
-        const hrsVal = document.getElementById('uTime').value.trim();
-        const isRRT  = document.getElementById('isRRT').checked;
-        const timeframe = document.getElementById('timeframe').value;
-        // <48h 的變化必然也落在 7d 內，故同時滿足絕對值窗與倍率窗
-        const is48h  = timeframe === 'lt48';
-        const is7d   = timeframe === 'lt48' || timeframe === '48h-7d';
-
-        const uFieldsFilled = [wtVal, volVal, hrsVal].filter(v => v !== '').length;
-
-        if (!isRRT && baseScrVal === '' && currScrVal === '' && uFieldsFilled === 0) {
-            alert('請填入至少一項資料（SCr 或尿量），或勾選 RRT。');
+        const r = KdigoCalc.evaluateAKI({
+            baseScr:   document.getElementById('baseScr').value,
+            currScr:   document.getElementById('currScr').value,
+            timeframe: document.getElementById('timeframe').value,
+            isRRT:     document.getElementById('isRRT').checked,
+            weight:    document.getElementById('weight').value,
+            uVol:      document.getElementById('uVol').value,
+            uTime:     document.getElementById('uTime').value,
+        });
+        if (r.error) {
+            alert(r.error);
             return;
         }
-        if (baseScrVal !== '' && currScrVal === '') {
-            alert('已填入 Baseline SCr，請同時填入 Current SCr。');
-            return;
-        }
-        if (currScrVal !== '' && baseScrVal === '') {
-            alert('已填入 Current SCr，請同時填入 Baseline SCr。');
-            return;
-        }
-        if (uFieldsFilled > 0 && uFieldsFilled < 3) {
-            alert('尿量分期需同時填入體重、尿量、收集時間三欄。');
-            return;
-        }
-        if (!isRRT && baseScrVal !== '' && currScrVal !== '' && timeframe === '') {
-            alert('已填入 SCr，請選擇 SCr 變化的時間窗。');
-            return;
-        }
-
-        const bScr = parseFloat(baseScrVal);
-        const cScr = parseFloat(currScrVal);
-        const wt   = parseFloat(wtVal);
-        const vol  = parseFloat(volVal);
-        const hrs  = parseFloat(hrsVal);
+        const { cStageInt, cStage, cDesc, uStageInt, uStage, uDesc } = r;
         const biomarker = document.getElementById('biomarker').value;
-
-        // 1. C-Stage
-        let cStageInt = 0, cStage = "C0", cDesc = "未達標";
-
-        if (isRRT) {
-            cStageInt = 3; cStage = "C3"; cDesc = "Initiation of RRT";
-        } else if (!isNaN(bScr) && !isNaN(cScr) && bScr > 0) {
-            const ratio = cScr / bScr;
-            const diff  = cScr - bScr;
-            if (is48h || is7d) {
-                const c3ByRatio = ratio >= 3.0 && is7d;
-                const c3ByAbs   = cScr >= 4.0 && diff >= 0.3 && (is48h || is7d);
-                if (c3ByRatio || c3ByAbs) {
-                    cStageInt = 3; cStage = "C3";
-                    cDesc = c3ByRatio
-                        ? `≥3.0x baseline (Ratio: ${ratio.toFixed(2)}, 7 天內)`
-                        : `SCr ≥4.0 mg/dL 伴急性上升 ≥0.3 mg/dL (Δ${diff.toFixed(2)})`;
-                } else if (ratio >= 2.0 && ratio < 3.0 && is7d) {
-                    cStageInt = 2; cStage = "C2";
-                    cDesc = `2.0–2.9x baseline (Ratio: ${ratio.toFixed(2)}, 7 天內)`;
-                } else if ((ratio >= 1.5 && ratio < 2.0 && is7d) || (diff >= 0.3 && is48h)) {
-                    cStageInt = 1; cStage = "C1";
-                    const reasons = [];
-                    if (diff >= 0.3 && is48h) reasons.push(`Δ${diff.toFixed(2)} mg/dL within 48h`);
-                    if (ratio >= 1.5 && ratio < 2.0 && is7d) reasons.push(`${ratio.toFixed(2)}x baseline within 7d`);
-                    cDesc = reasons.join(' / ');
-                }
-            } else {
-                cDesc = "時間窗 >7 天或時間不明 — 不符 AKI 時間定義（請考量 AKD / CKD）";
-            }
-        }
-
-        // 2. U-Stage
-        let uStageInt = 0, uStage = "U0", uDesc = "未達標 / 資料不完整";
-
-        if (!isNaN(wt) && !isNaN(vol) && !isNaN(hrs) && wt > 0 && hrs > 0) {
-            const rate = vol / wt / hrs;
-            if (rate < 0.3 && hrs >= 24) {
-                uStageInt = 3; uStage = "U3";
-                uDesc = `Rate: ${rate.toFixed(2)} mL/kg/h for ${hrs}h (< 0.3 × ≥24h)`;
-            } else if (rate < 0.1 && hrs > 12) {
-                uStageInt = 3; uStage = "U3";
-                uDesc = `Near-anuria (Rate: ${rate.toFixed(3)} mL/kg/h for ${hrs}h)`;
-            } else if (rate < 0.5 && hrs > 12) {
-                uStageInt = 2; uStage = "U2";
-                uDesc = `Rate: ${rate.toFixed(2)} mL/kg/h for ${hrs}h`;
-            } else if (rate < 0.5 && hrs >= 6 && hrs <= 12) {
-                uStageInt = 1; uStage = "U1";
-                uDesc = `Rate: ${rate.toFixed(2)} mL/kg/h for ${hrs}h`;
-            } else {
-                uDesc = `正常 (Rate: ${rate.toFixed(2)} mL/kg/h)`;
-            }
-        }
 
         // 3. B-Stage
         let bStageStr = "", bDesc = "";
@@ -1018,7 +941,7 @@
         badge.style.backgroundColor = isAki ? "#fef2f2" : "#f0fdf4";
 
         // 4. Clinical Recommendations
-        const maxStage = Math.max(cStageInt, uStageInt);
+        const maxStage = r.finalStage;
         const recs = [];
         if (isAki) {
             recs.push("停用所有潛在腎毒性藥物（詳見下方 SADMANS 清單）。");
