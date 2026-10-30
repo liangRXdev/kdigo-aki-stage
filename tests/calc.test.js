@@ -152,3 +152,29 @@ test('U：收集 <6h 且 rate <0.5 不得標「正常」', () => {
     assert.match(r.uDesc, /<6h/);
     assert.match(U('70', '300', '4').uDesc, /正常/);
 });
+
+test('U 邊界：hrs 5.9/6/12/12.5/24/25（U3 hrs=24 現行判 U3，標準寫 >24h，列 PR 待決）', () => {
+    assert.equal(U('70', '0', '5.9').uStage, 'U0');
+    assert.equal(U('70', '200', '6').uStage, 'U1');
+    assert.equal(U('70', '200', '12').uStage, 'U1');
+    assert.equal(U('70', '200', '12.5').uStage, 'U2');
+    assert.equal(U('70', '200', '24').uStage, 'U3'); // 待決：>24h 是否應不含 24
+    assert.equal(U('70', '504', '24').uStage, 'U2'); // rate 恰 0.3 → 不符 <0.3
+    assert.equal(U('70', '500', '25').uStage, 'U3');
+});
+
+test('C 邊界：ratio 恰 2.0 → C2；恰 3.0 → C3；1.99 → C1', () => {
+    assert.equal(C('1.0', '2.0', '48h-7d').cStage, 'C2');
+    assert.equal(C('1.5', '3.0', 'lt48').cStage, 'C2');
+    assert.equal(C('1.0', '3.0', '48h-7d').cStage, 'C3');
+    assert.equal(C('1.0', '1.99', 'lt48').cStage, 'C1');
+});
+
+test('C 待決現況鎖定：48h-7d、SCr 達 4.0 且 Δ≥0.3 但 ratio <1.5 → 現行判 C3', () => {
+    assert.equal(C('3.8', '4.1', '48h-7d').cStage, 'C3');
+});
+
+test('RRT 不需 timeframe；RRT + 尿量時 final 仍為 3', () => {
+    assert.equal(evaluateAKI({ isRRT: true, baseScr: '1.0', currScr: '1.0' }).cStage, 'C3');
+    assert.equal(evaluateAKI({ isRRT: true, weight: '70', uVol: '700', uTime: '6' }).finalStage, 3);
+});
