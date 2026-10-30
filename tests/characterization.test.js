@@ -18,13 +18,15 @@ test('characterization：輸出與重構前一致（刻意修正除外）', () =
         const page = loadPage();
         page.run(c);
         const now = page.compact();
-        const rule = RULES.find(r => r.match(c, old));
-        if (rule) {
-            used.add(rule.id);
-            assert.ok(rule.check(now, old, c), `[${rule.id}] ${keyOf(c)}\nnow=${JSON.stringify(now)}\nold=${JSON.stringify(old)}`);
-        } else {
-            assert.deepEqual(now, old, keyOf(c));
+        let rules = RULES.filter(r => r.match(c, old));
+        if (rules.some(r => r.exclusive)) rules = rules.filter(r => r.exclusive);
+        const mutable = new Set(rules.flatMap(r => (typeof r.fields === 'function' ? r.fields(c, old) : r.fields)));
+        for (const r of rules) {
+            used.add(r.id);
+            assert.ok(r.check(now, old, c), `[${r.id}] ${keyOf(c)}\nnow=${JSON.stringify(now)}\nold=${JSON.stringify(old)}`);
         }
+        for (const f of Object.keys(old))
+            if (!mutable.has(f)) assert.deepEqual(now[f], old[f], `${f} 不應改變：${keyOf(c)}`);
     }
     for (const r of RULES) assert.ok(used.has(r.id), `規則 ${r.id} 未命中任何案例`);
 });

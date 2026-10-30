@@ -1,6 +1,8 @@
 // 刻意修 bug 造成的 characterization 差異。每條規則：
-//   match(c, old)  → 此案是否受該修正影響
+//   match(c, old)      → 此案是否受該修正影響
+//   fields             → 該修正允許改變的欄位；其餘欄位必須與 snapshot 完全一致
 //   check(now, old, c) → 回傳 true 表示新輸出符合預期
+//   exclusive          → 命中時只套用此規則（例如輸入被擋下，其他修正無從比較）
 // 不屬於任何規則的案例，新輸出必須與 snapshot 完全一致。
 'use strict';
 const stageOf = html => (/<strong>([CU]\d)<\/strong>/.exec(html || '') || [])[1];
@@ -31,17 +33,34 @@ function exactMatches(html, c) {
 
 const bad = (v, allowZero) => v !== '' && !(parseFloat(v) > 0 || (allowZero && parseFloat(v) === 0));
 
+const noScr = c => c.baseScr === '' && !c.isRRT;
+const shortLowUO = c => parseFloat(c.weight) > 0 && parseFloat(c.uTime) > 0 && parseFloat(c.uTime) < 6 &&
+    parseFloat(c.uVol) >= 0 && parseFloat(c.uVol) / parseFloat(c.weight) / parseFloat(c.uTime) < 0.5;
+
 module.exports = [
     {
         id: 'fix-invalid-range',
         // 舊版未擋：SCr ≤0、體重 ≤0、時數 ≤0、尿量 <0（須在原有「缺欄位」檢查通過後）
         match: (c, old) => old.alert === null && (bad(c.baseScr) || bad(c.currScr) ||
             bad(c.weight) || bad(c.uTime) || bad(c.uVol, true)),
+        exclusive: true,
+        fields: ['alert', 'visible', 'resC', 'resU', 'badge', 'copy'],
         check: now => /大於 0|≥0/.test(now.alert || '') && !now.visible && now.copy === null,
     },
     {
         id: 'fix-float-threshold',
         match: (c, old) => exactCStage(c) !== null && old.alert === null && !exactMatches(old.resC, c),
-        check: (now, old, c) => exactMatches(now.resC, c) && now.resU === old.resU,
+        fields: ['resC', 'badge', 'copy'],
+        check: (now, old, c) => exactMatches(now.resC, c),
+    },
+    {
+        id: 'fix-partial-labels',
+        // 未輸入 SCr / 尿量時舊版顯示「未達標」；收集 <6h 且 rate <0.5 舊版顯示「正常」
+        match: (c, old) => old.alert === null && (noScr(c) || c.weight === '' || shortLowUO(c)),
+        fields: c => [...(noScr(c) ? ['resC'] : []), ...(c.weight === '' || shortLowUO(c) ? ['resU'] : []), 'copy'],
+        check: (now, old, c) =>
+            (!noScr(c) || now.resC === '<strong>C0</strong>: 未提供 SCr（未評估）') &&
+            (c.weight !== '' || now.resU === '<strong>U0</strong>: 未提供尿量（未評估）') &&
+            (!shortLowUO(c) || /^<strong>U0<\/strong>: 收集時間 <6h/.test(now.resU)),
     },
 ];

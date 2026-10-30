@@ -133,3 +133,22 @@ test('輸出不得出現 NaN、Infinity 或負值', () => {
         for (const n of [r.cStageInt, r.uStageInt, r.finalStage]) assert.ok(Number.isInteger(n) && n >= 0 && n <= 3);
     }
 });
+
+test('部分輸入：只填尿量時 C 描述為「未提供」而非「未達標」', () => {
+    const r = U('70', '200', '6');
+    assert.equal(r.cStage, 'C0');
+    assert.match(r.cDesc, /未提供 SCr/);
+});
+
+test('部分輸入：只填 SCr / 只勾 RRT 時 U 描述為「未提供」', () => {
+    assert.match(C('1.0', '2.0', 'lt48').uDesc, /未提供尿量/);
+    assert.match(evaluateAKI({ isRRT: true }).uDesc, /未提供尿量/);
+});
+
+test('U：收集 <6h 且 rate <0.5 不得標「正常」', () => {
+    const r = U('70', '0', '4');
+    assert.equal(r.uStage, 'U0');
+    assert.doesNotMatch(r.uDesc, /正常/);
+    assert.match(r.uDesc, /<6h/);
+    assert.match(U('70', '300', '4').uDesc, /正常/);
+});
