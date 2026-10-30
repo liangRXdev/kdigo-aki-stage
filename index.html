@@ -912,6 +912,8 @@
             uTime:     document.getElementById('uTime').value,
         });
         if (r.error) {
+            // 不保留上一次分析的畫面與複製文字，避免與目前輸入不一致
+            hideResults();
             alert(r.error);
             return;
         }
@@ -991,10 +993,7 @@
 
             document.getElementById('postakiBox').style.display = 'block';
         } else {
-            sadmansBox.style.display = 'none';
-            tdmBox.style.display = 'none';
-            nephrotoxBox.style.display = 'none';
-            document.getElementById('postakiBox').style.display = 'none';
+            hideDrugPanels();
         }
 
         // 7. Build copy text
@@ -1035,17 +1034,26 @@
             `\n📋 提醒：停藥後請在病歷記錄重啟計畫。`;
     }
 
+    // 隱藏藥物面板並移除其勾選框：隱藏中的舊勾選不得進入 copyResults()
+    function hideDrugPanels() {
+        ['sadmansBox', 'tdmBox', 'nephrotoxBox', 'postakiBox'].forEach(id =>
+            document.getElementById(id).style.display = 'none');
+        ['sadmansGrid', 'tdmGrid', 'nephrotoxGrid'].forEach(id =>
+            document.getElementById(id).innerHTML = '');
+    }
+
+    function hideResults() {
+        document.getElementById('resultBox').style.display = "none";
+        hideDrugPanels();
+        copyTextData = "";
+    }
+
     function resetForm() {
         document.querySelectorAll('input[type="number"]').forEach(el => el.value = '');
         document.querySelectorAll('input[type="checkbox"]').forEach(el => el.checked = false);
         document.getElementById('timeframe').value = '';
         document.getElementById('biomarker').value = 'NotTested';
-        document.getElementById('resultBox').style.display = "none";
-        document.getElementById('sadmansBox').style.display = "none";
-        document.getElementById('tdmBox').style.display = "none";
-        document.getElementById('nephrotoxBox').style.display = "none";
-        document.getElementById('postakiBox').style.display = "none";
-        copyTextData = "";
+        hideResults();
     }
 
     // ── PWA ───────────────────────────────────────────────────────

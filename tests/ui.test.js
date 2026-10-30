@@ -16,8 +16,8 @@ test('resetForm：清空輸入、藥物勾選、結果與複製文字', () => {
     p.context.resetForm();
     for (const id of ['baseScr', 'currScr', 'timeframe', 'weight', 'uVol', 'uTime']) assert.equal(p.$(id).value, '', id);
     assert.equal(p.$('isRRT').checked, false);
-    assert.equal(p.$('sad_nsai').checked, false);
-    assert.equal(p.$('tdm_vanc').checked, false);
+    // 勾選框可能已隨面板移除；存在時必須為未勾選
+    for (const id of ['sad_nsai', 'tdm_vanc']) assert.ok(!p.$(id) || !p.$(id).checked, id);
     assert.equal(p.$('biomarker').value, 'NotTested');
     for (const id of ['resultBox', 'sadmansBox', 'tdmBox', 'nephrotoxBox', 'postakiBox']) assert.equal(p.$(id).style.display, 'none', id);
     const s = p.snapshot();
