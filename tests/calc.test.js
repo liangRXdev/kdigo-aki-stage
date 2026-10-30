@@ -75,3 +75,31 @@ test('部分輸入：缺欄位回傳錯誤訊息', () => {
     assert.match(evaluateAKI({ weight: '70', uVol: '100' }).error, /三欄/);
     assert.match(C('1.0', '1.5', '').error, /時間窗/);
 });
+
+test('浮點邊界：Δ 恰 0.3 判 C1（1.1→1.4 = 0.2999…）', () => {
+    assert.equal(C('1.1', '1.4', 'lt48').cStage, 'C1');
+    assert.equal(C('2.0', '2.3', 'lt48').cStage, 'C1');
+    assert.equal(C('0.4', '0.7', 'lt48').cStage, 'C1');
+    assert.match(C('1.1', '1.4', 'lt48').cDesc, /Δ0\.30/);
+});
+
+test('浮點邊界：ratio 恰 1.5／3.0 判對應分期（0.8→1.2 = 1.4999…）', () => {
+    assert.equal(C('0.8', '1.2', '48h-7d').cStage, 'C1');
+    assert.equal(C('1.1', '1.65', '48h-7d').cStage, 'C1');
+    assert.equal(C('0.8', '2.4', '48h-7d').cStage, 'C3');
+    assert.equal(C('1.1', '3.3', '48h-7d').cStage, 'C3');
+    assert.equal(C('1.0', '2.0', '48h-7d').cStage, 'C2');
+});
+
+test('浮點邊界：SCr 恰 4.0 且 Δ 恰 0.3 → C3（3.7→4.0）', () => {
+    assert.equal(C('3.7', '4.0', 'lt48').cStage, 'C3');
+});
+
+test('浮點容差不放寬真正未達標者', () => {
+    assert.equal(C('1.0', '1.29', 'lt48').cStage, 'C0');
+    assert.equal(C('1.0', '1.49', '48h-7d').cStage, 'C0');
+    assert.equal(C('1.0', '1.99', '48h-7d').cStage, 'C1');
+    assert.equal(C('1.0', '2.99', '48h-7d').cStage, 'C2');
+    assert.equal(C('3.71', '4.0', 'lt48').cStage, 'C0');
+    assert.equal(C('3.0', '3.99', 'lt48').cStage, 'C1');
+});
