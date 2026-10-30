@@ -178,3 +178,17 @@ test('RRT 不需 timeframe；RRT + 尿量時 final 仍為 3', () => {
     assert.equal(evaluateAKI({ isRRT: true, baseScr: '1.0', currScr: '1.0' }).cStage, 'C3');
     assert.equal(evaluateAKI({ isRRT: true, weight: '70', uVol: '700', uTime: '6' }).finalStage, 3);
 });
+
+test('U 浮點門檻：rate 數學上恰為 0.5／0.3／0.1 時不得因 IEEE 754 誤差被多判一級', () => {
+    // 1.1 kg × 6h × 0.5 = 3.3 mL → 3.3/1.1/6 = 0.4999… ；數學上 0.5 不符 <0.5
+    assert.equal(U('1.1', '3.3', '6').uStage, 'U0');
+    assert.equal(U('3.6', '11.7', '6.5').uStage, 'U0');
+    // 4.5 kg × 28h × 0.3 = 37.8 mL → 0.2999… ；數學上 0.3 不符 <0.3（應為 U2）
+    assert.equal(U('4.5', '37.8', '28').uStage, 'U2');
+    assert.equal(U('16.5', '128.7', '26').uStage, 'U2');
+    // 4.5 kg × 18h × 0.1 = 8.1 mL → 0.0999… ；數學上 0.1 不符無尿門檻 <0.1（應為 U2）
+    assert.equal(U('4.5', '8.1', '18').uStage, 'U2');
+    // 明確低於門檻者不受容差影響
+    assert.equal(U('1.1', '3.2', '6').uStage, 'U1');
+    assert.equal(U('4.5', '37.7', '28').uStage, 'U3');
+});
