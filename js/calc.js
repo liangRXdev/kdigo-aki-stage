@@ -41,6 +41,16 @@
         const vol  = parseFloat(volVal);
         const hrs  = parseFloat(hrsVal);
 
+        // 數值範圍：避免 ÷0（Infinity）、NaN 或負值被靜默判為 C0 / U-Stage
+        const pos = (s, n) => s === '' || (Number.isFinite(n) && n > 0);
+        if (!pos(baseScrVal, bScr) || !pos(currScrVal, cScr))
+            return { error: 'SCr 必須為大於 0 的數值（mg/dL）。' };
+        if (uFieldsFilled === 3) {
+            if (!pos(wtVal, wt))  return { error: '體重必須為大於 0 的數值（kg）。' };
+            if (!pos(hrsVal, hrs)) return { error: '收集時間必須為大於 0 的數值（小時）。' };
+            if (!(Number.isFinite(vol) && vol >= 0)) return { error: '尿量必須為 ≥0 的數值（mL）。' };
+        }
+
         // 1. C-Stage
         let cStageInt = 0, cStage = "C0", cDesc = "未達標";
 
