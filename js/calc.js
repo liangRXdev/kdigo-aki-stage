@@ -53,6 +53,7 @@
 
         // 1. C-Stage
         let cStageInt = 0, cStage = "C0", cDesc = "未達標";
+        if (!isRRT && baseScrVal === '') cDesc = "未提供 SCr（未評估）";
 
         if (isRRT) {
             cStageInt = 3; cStage = "C3"; cDesc = "Initiation of RRT";
@@ -84,7 +85,7 @@
         }
 
         // 2. U-Stage
-        let uStageInt = 0, uStage = "U0", uDesc = "未達標 / 資料不完整";
+        let uStageInt = 0, uStage = "U0", uDesc = "未提供尿量（未評估）";
 
         if (!isNaN(wt) && !isNaN(vol) && !isNaN(hrs) && wt > 0 && hrs > 0) {
             const rate = vol / wt / hrs;
@@ -100,6 +101,8 @@
             } else if (rate < 0.5 && hrs >= 6 && hrs <= 12) {
                 uStageInt = 1; uStage = "U1";
                 uDesc = `Rate: ${rate.toFixed(2)} mL/kg/h for ${hrs}h`;
+            } else if (rate < 0.5) {
+                uDesc = `收集時間 <6h，未達 U1 最短判定時間 (Rate: ${rate.toFixed(2)} mL/kg/h for ${hrs}h)`;
             } else {
                 uDesc = `正常 (Rate: ${rate.toFixed(2)} mL/kg/h)`;
             }
