@@ -7,6 +7,8 @@
     // （1.4 − 1.1 = 0.2999…、1.2 / 0.8 = 1.4999…），比較時一律容許 EPS。
     const EPS = 1e-9;
     const gte = (a, b) => a >= b - EPS;
+    // 尿量 rate 的「< 門檻」同理（3.3 / 1.1 / 6 = 0.4999…），數學上等於門檻者不算低於。
+    const lt  = (a, b) => a < b - EPS;
 
     // 輸入皆為表單原始字串（或 boolean）；回傳 { error } 或分期結果。
     function evaluateAKI(input) {
@@ -89,19 +91,19 @@
 
         if (!isNaN(wt) && !isNaN(vol) && !isNaN(hrs) && wt > 0 && hrs > 0) {
             const rate = vol / wt / hrs;
-            if (rate < 0.3 && hrs >= 24) {
+            if (lt(rate, 0.3) && hrs >= 24) {
                 uStageInt = 3; uStage = "U3";
                 uDesc = `Rate: ${rate.toFixed(2)} mL/kg/h for ${hrs}h (< 0.3 × ≥24h)`;
-            } else if (rate < 0.1 && hrs > 12) {
+            } else if (lt(rate, 0.1) && hrs > 12) {
                 uStageInt = 3; uStage = "U3";
                 uDesc = `Near-anuria (Rate: ${rate.toFixed(3)} mL/kg/h for ${hrs}h)`;
-            } else if (rate < 0.5 && hrs > 12) {
+            } else if (lt(rate, 0.5) && hrs > 12) {
                 uStageInt = 2; uStage = "U2";
                 uDesc = `Rate: ${rate.toFixed(2)} mL/kg/h for ${hrs}h`;
-            } else if (rate < 0.5 && hrs >= 6 && hrs <= 12) {
+            } else if (lt(rate, 0.5) && hrs >= 6 && hrs <= 12) {
                 uStageInt = 1; uStage = "U1";
                 uDesc = `Rate: ${rate.toFixed(2)} mL/kg/h for ${hrs}h`;
-            } else if (rate < 0.5) {
+            } else if (lt(rate, 0.5)) {
                 uDesc = `收集時間 <6h，未達 U1 最短判定時間 (Rate: ${rate.toFixed(2)} mL/kg/h for ${hrs}h)`;
             } else {
                 uDesc = `正常 (Rate: ${rate.toFixed(2)} mL/kg/h)`;
